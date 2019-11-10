@@ -15,7 +15,7 @@ public class DBMySqlVerticle extends DBVerticle {
   public void start(Promise<Void> promise) throws Exception {
     String host = "localhost";
     if (System.getProperty("os.name").contains("Mac OS")) {
-      host = "54.144.244.86";
+      host = "34.201.19.193";
     }
     dbClient =
         MySQLClient.createShared(
