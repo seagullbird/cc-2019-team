@@ -1,25 +1,14 @@
 package io.vertx.starter;
 
-import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.asyncsql.MySQLClient;
 import io.vertx.ext.sql.SQLClient;
 
-public class DBMySqlVerticle extends AbstractVerticle {
+public class DBMySqlVerticle extends DBVerticle {
   static final String queueName = "mysql.queue";
-
-  public enum ErrorCodes {
-    NO_ACTION_SPECIFIED,
-    BAD_ACTION,
-    DB_ERROR
-  }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(DBMySqlVerticle.class);
   private SQLClient dbClient;
 
   @Override
@@ -42,33 +31,8 @@ public class DBMySqlVerticle extends AbstractVerticle {
     promise.complete();
   }
 
-  private void onMessage(Message<JsonObject> message) {
-    if (!message.headers().contains("action")) {
-      LOGGER.error(
-          "No action header specified for message with headers {} and body {}",
-          message.headers(),
-          message.body().encodePrettily());
-      message.fail(ErrorCodes.NO_ACTION_SPECIFIED.ordinal(), "No action header specified");
-      return;
-    }
-    String action = message.headers().get("action");
-
-    switch (action) {
-      case "words":
-        fetchQ3Words(message);
-        break;
-      case "texts":
-        fetchQ3Texts(message);
-        break;
-      case "q2":
-        fetchQ2(message);
-        break;
-      default:
-        message.fail(ErrorCodes.BAD_ACTION.ordinal(), "Bad action: " + action);
-    }
-  }
-
-  private void fetchQ2(Message<JsonObject> message) {
+  @Override
+  void fetchQ2(Message<JsonObject> message) {
     JsonObject request = message.body();
     long reqUser = request.getLong("user");
     String sql =
@@ -86,7 +50,8 @@ public class DBMySqlVerticle extends AbstractVerticle {
       });
   }
 
-  private void fetchQ3Words(Message<JsonObject> message) {
+  @Override
+  void fetchQ3Words(Message<JsonObject> message) {
     JsonObject request = message.body();
     JsonArray params =
         new JsonArray()
@@ -112,7 +77,8 @@ public class DBMySqlVerticle extends AbstractVerticle {
         });
   }
 
-  private void fetchQ3Texts(Message<JsonObject> message) {
+  @Override
+  void fetchQ3Texts(Message<JsonObject> message) {
     JsonObject request = message.body();
     String sql =
         String.format(
@@ -131,10 +97,5 @@ public class DBMySqlVerticle extends AbstractVerticle {
             reportQueryError(message, fetch.cause());
           }
         });
-  }
-
-  private void reportQueryError(Message<JsonObject> message, Throwable cause) {
-    LOGGER.error("Database query error", cause);
-    message.fail(ErrorCodes.DB_ERROR.ordinal(), cause.getMessage());
   }
 }
