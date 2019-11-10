@@ -21,6 +21,7 @@ public class HTTPServerVerticle extends AbstractVerticle {
 
     Router router = Router.router(vertx);
     router.get("/healthcheck").handler(context -> respondMsg(context, "healthy"));
+    router.get("/q1*").handler(HTTPServerVerticle::q1handler);
     router.get("/q2*").handler(context -> Query2.run(vertx, context));
     router.get("/q3*").handler(context -> Query3.run(vertx, context));
 
@@ -37,6 +38,13 @@ public class HTTPServerVerticle extends AbstractVerticle {
                 promise.fail(ar.cause());
               }
             });
+  }
+
+  static void q1handler(RoutingContext context) {
+    String input = context.request().getParam("cc");
+    OGCoin ogCoin = new OGCoin(input);
+    String res = ogCoin.run();
+    respondMsg(context, res);
   }
 
   static void respondMsg(RoutingContext context, String msg) {
