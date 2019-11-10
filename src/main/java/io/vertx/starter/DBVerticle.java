@@ -15,10 +15,6 @@ abstract class DBVerticle extends AbstractVerticle {
   static final Logger LOGGER = LoggerFactory.getLogger(DBMySqlVerticle.class);
   void onMessage(Message<JsonObject> message) {
     if (!message.headers().contains("action")) {
-      LOGGER.error(
-        "No action header specified for message with headers {} and body {}",
-        message.headers(),
-        message.body().encodePrettily());
       message.fail(ErrorCodes.NO_ACTION_SPECIFIED.ordinal(), "No action header specified");
       return;
     }

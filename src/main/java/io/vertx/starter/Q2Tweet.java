@@ -1,7 +1,6 @@
 package io.vertx.starter;
 
-
-import io.vertx.core.json.JsonObject;
+import org.json.JSONObject;
 
 public class Q2Tweet {
 
@@ -11,19 +10,19 @@ public class Q2Tweet {
 
   private Long targetUid;
 
-  private JsonObject hashTags;
+  private JSONObject hashTags;
 
   private Long createdAt;
 
   private String text;
 
   public Q2Tweet(
-    Long senderUid,
-    Long tweetId,
-    Long targetUid,
-    JsonObject hashTags,
-    Long createdAt,
-    String text) {
+      Long senderUid,
+      Long tweetId,
+      Long targetUid,
+      JSONObject hashTags,
+      Long createdAt,
+      String text) {
     this.senderUid = senderUid;
     this.tweetId = tweetId;
     this.targetUid = targetUid;
@@ -44,7 +43,7 @@ public class Q2Tweet {
     return targetUid;
   }
 
-  public JsonObject getHashTags() {
+  public JSONObject getHashTags() {
     return hashTags;
   }
 
@@ -55,5 +54,4 @@ public class Q2Tweet {
   public String getText() {
     return text;
   }
-
 }

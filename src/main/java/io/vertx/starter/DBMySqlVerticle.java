@@ -1,32 +1,37 @@
 package io.vertx.starter;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.asyncsql.MySQLClient;
-import io.vertx.ext.sql.SQLClient;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class DBMySqlVerticle extends DBVerticle {
   static final String queueName = "mysql.queue";
-  private SQLClient dbClient;
+  private HikariDataSource ds;
+  private final int MAX_POOL_SIZE = 4;
 
   @Override
   public void start(Promise<Void> promise) throws Exception {
-    String host = "localhost";
-    if (System.getProperty("os.name").contains("Mac OS")) {
-      host = "34.201.19.193";
+    HikariConfig config = new HikariConfig();
+    String osName = System.getProperty("os.name");
+    if (osName.contains("Mac OS")) {
+      config.setJdbcUrl("jdbc:mysql://34.201.19.193/twitter?useSSL=false");
+    } else {
+      config.setJdbcUrl("jdbc:mysql://localhost/twitter?useSSL=false");
     }
-    dbClient =
-        MySQLClient.createShared(
-            vertx,
-            new JsonObject()
-                .put("host", host)
-                .put("database", "twitter")
-                .put("username", "og")
-                .put("password", "123456")
-                .put("sslMode", "disable")
-                .put("max_pool_size", 4));
+    config.setUsername("og");
+    config.setPassword("123456");
+    config.setMaximumPoolSize(MAX_POOL_SIZE);
+    config.addDataSourceProperty("cachePrepStmts", "true");
+    config.addDataSourceProperty("prepStmtCacheSize", "250");
+    config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+    ds = new HikariDataSource(config);
     vertx.eventBus().consumer(queueName, this::onMessage);
     promise.complete();
   }
@@ -36,45 +41,46 @@ public class DBMySqlVerticle extends DBVerticle {
     JsonObject request = message.body();
     long reqUser = request.getLong("user");
     String sql =
-      String.format(
-        "select description, screen_name, hashtags, records from q2_tweets where uid = %d;", reqUser);
-    dbClient.query(
-      sql,
-      fetch -> {
-        if (fetch.succeeded()) {
-          JsonArray response = new JsonArray(fetch.result().getResults());
-          message.reply(response);
-        } else {
-          reportQueryError(message, fetch.cause());
-        }
-      });
+        String.format(
+            "select description, screen_name, hashtags, records from q2_tweets where uid = %d;",
+            reqUser);
+
+    try (Connection conn = ds.getConnection()) {
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(sql);
+      JsonObject result = new JsonObject();
+      if (rs.next()) {
+        result.put("description", rs.getString("description"));
+        result.put("screen_name", rs.getString("screen_name"));
+        result.put("hashtags", rs.getString("hashtags"));
+        result.put("records", rs.getString("records"));
+      }
+      message.reply(result);
+    } catch (SQLException e) {
+      LOGGER.error(e);
+    }
   }
 
   @Override
   void fetchQ3Words(Message<JsonObject> message) {
     JsonObject request = message.body();
-    JsonArray params =
-        new JsonArray()
-            .add(request.getString("uidStart"))
-            .add(request.getString("uidEnd"))
-            .add(request.getString("timeStart"))
-            .add(request.getString("timeEnd"));
 
     String sql =
-        "SELECT id, words "
-            + "FROM tweets "
-            + "WHERE (user_id BETWEEN ? AND ?) AND (created_at BETWEEN ? AND ?)";
-    dbClient.queryWithParams(
-        sql,
-        params,
-        fetch -> {
-          if (fetch.succeeded()) {
-            JsonArray response = new JsonArray(fetch.result().getResults());
-            message.reply(response);
-          } else {
-            reportQueryError(message, fetch.cause());
-          }
-        });
+        String.format(
+            "SELECT id, words "
+                + "FROM tweets "
+                + "WHERE (user_id BETWEEN %s AND %s) AND (created_at BETWEEN %s AND %s)",
+            request.getString("uidStart"),
+            request.getString("uidEnd"),
+            request.getString("timeStart"),
+            request.getString("timeEnd"));
+    try (Connection conn = ds.getConnection()) {
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(sql);
+      message.reply(rs);
+    } catch (SQLException e) {
+      LOGGER.error(e);
+    }
   }
 
   @Override
@@ -87,15 +93,12 @@ public class DBMySqlVerticle extends DBVerticle {
                 + "WHERE id IN %s "
                 + "ORDER BY impact_score DESC, id DESC LIMIT %s",
             request.getString("ids"), request.getString("n2"));
-    dbClient.query(
-        sql,
-        fetch -> {
-          if (fetch.succeeded()) {
-            JsonArray response = new JsonArray(fetch.result().getResults());
-            message.reply(response);
-          } else {
-            reportQueryError(message, fetch.cause());
-          }
-        });
+    try (Connection conn = ds.getConnection()) {
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(sql);
+      message.reply(rs);
+    } catch (SQLException e) {
+      LOGGER.error(e);
+    }
   }
 }

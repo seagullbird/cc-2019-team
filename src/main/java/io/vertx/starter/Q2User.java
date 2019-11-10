@@ -1,7 +1,6 @@
 package io.vertx.starter;
 
-
-import io.vertx.core.json.JsonObject;
+import org.json.JSONObject;
 
 public class Q2User {
 
@@ -11,13 +10,13 @@ public class Q2User {
 
   private String screenName;
 
-  private JsonObject hashtags;
+  private JSONObject hashtags;
 
   private double finalScore;
 
   private String latestContent;
 
-  public Q2User(Long userId, String screenName, String description, JsonObject hashtags) {
+  public Q2User(Long userId, String screenName, String description, JSONObject hashtags) {
     this.userId = userId;
     this.description = description;
     this.screenName = screenName;
@@ -37,7 +36,7 @@ public class Q2User {
     return screenName;
   }
 
-  public JsonObject getHashtags() {
+  public JSONObject getHashtags() {
     return hashtags;
   }
 

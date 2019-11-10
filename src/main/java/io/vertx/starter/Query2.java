@@ -6,14 +6,18 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.RoutingContext;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -64,6 +68,8 @@ public class Query2 {
     } catch (UnsupportedEncodingException e) {
       respondMsg(context, HTTPServerVerticle.header);
       LOGGER.error(e.toString());
+    } catch (Exception e) {
+      LOGGER.error(e);
     }
   }
 
@@ -89,29 +95,28 @@ public class Query2 {
     // user -> numOfMatch (keyword)
     Map<Long, Integer> keywordNumOfMatches = new HashMap<>();
 
-    JsonArray body = (JsonArray) reply.result().body();
-    if (body.size() != 0) {
-      JsonArray row = body.getJsonArray(0);
-      String description = getFromJsonArray(row.getString(0));
-      String screen_name = getFromJsonArray(row.getString(1));
-      JsonObject user_tags = getUtags(row);
+    JsonObject rs = (JsonObject) reply.result().body();
+    if (!rs.isEmpty()) {
+      String description = getFromJsonArray(rs.getString("description"));
+      String screen_name = getFromJsonArray(rs.getString("screen_name"));
+      JSONObject user_tags = getJsonObject(rs, "hashtags");
       userMap.put(reqUser, new Q2User(reqUser, screen_name, description, user_tags));
 
-      JsonArray records = new JsonArray(row.getString(3));
-      for (int idx = 0; idx < records.size(); idx++) {
-        JsonArray record = records.getJsonArray(idx);
+      JSONArray records = new JSONArray(rs.getString("records"));
+      for (int idx = 0; idx < records.length(); idx++) {
+        JSONArray record = records.getJSONArray(idx);
         Long u2_id = record.getLong(0);
         String u2_desc = record.getString(1);
         String u2_name = record.getString(2);
-        JsonObject u2_tags = record.getJsonObject(3);
+        JSONObject u2_tags = record.getJSONObject(3);
 
         // gen userMap
         userMap.put(u2_id, new Q2User(u2_id, u2_name, u2_desc, u2_tags));
 
-        JsonArray tweets = record.getJsonArray(4);
-        for (int j = 0; j < tweets.size(); j++) {
-          JsonArray tweet = tweets.getJsonArray(j);
-          int tweetType = tweet.getInteger(1);
+        JSONArray tweets = record.getJSONArray(4);
+        for (int j = 0; j < tweets.length(); j++) {
+          JSONArray tweet = tweets.getJSONArray(j);
+          int tweetType = tweet.getInt(1);
 
           // check type
           if (type.equals("reply") && tweetType == 0) {
@@ -122,7 +127,7 @@ public class Query2 {
           }
           Long tweetId = tweet.getLong(0);
           Long createdAt = tweet.getLong(2);
-          JsonObject hashTags = tweet.getJsonObject(3);
+          JSONObject hashTags = tweet.getJSONObject(3);
           String text = tweet.getString(4);
 
           // prepare to calculate interaction score
@@ -133,7 +138,7 @@ public class Query2 {
           }
 
           // new Tweet(uid1, tweetId, uid2, hashTags, createdAt, content)
-          int numOfTags = hashTags.getInteger(hashtag, 0);
+          int numOfTags = hashTags.optInt(hashtag, 0);
           int numOfPhrase = 0;
           int init = text.indexOf(phrase);
           while (init != -1) {
@@ -164,7 +169,7 @@ public class Query2 {
     List<Q2User> result = new ArrayList<>();
     Q2User reqUserObj = userMap.get(reqUser);
     if (reqUserObj != null) {
-      JsonObject requestUserHashtags = reqUserObj.getHashtags();
+      JSONObject requestUserHashtags = reqUserObj.getHashtags();
       if (requestUserHashtags != null) {
         for (Long uid : userMap.keySet()) {
           double interactionScore =
@@ -179,10 +184,10 @@ public class Query2 {
           double hashtagScore = 1.0;
           if (!uid.equals(reqUser)) {
             int count = 0;
-            JsonObject contactUserHashtags = userMap.get(uid).getHashtags();
-            for (String tag : requestUserHashtags.fieldNames()) {
-              if (contactUserHashtags.getInteger(tag, 0) > 0) {
-                count += contactUserHashtags.getInteger(tag) + requestUserHashtags.getInteger(tag);
+            JSONObject contactUserHashtags = userMap.get(uid).getHashtags();
+            for (String tag : requestUserHashtags.keySet()) {
+              if (contactUserHashtags.optInt(tag, 0) > 0) {
+                count += contactUserHashtags.getInt(tag) + requestUserHashtags.getInt(tag);
               }
             }
             if (count > 10) {
@@ -233,16 +238,16 @@ public class Query2 {
 
   private static String getFromJsonArray(String jsonStr) {
     try {
-      JsonArray json = new JsonArray(jsonStr);
+      JSONArray json = new JSONArray(jsonStr);
       return json.getString(0);
     } catch (Exception e) {
       return "";
     }
   }
 
-  private static JsonObject getUtags(JsonArray row) {
+  private static JSONObject getJsonObject(JsonObject rs, String jsonStr) {
     try {
-      return new JsonObject(row.getString(2));
+      return new JSONObject(rs.getString(jsonStr));
     } catch (Exception e) {
       return null;
     }
