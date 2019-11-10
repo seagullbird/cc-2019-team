@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.sql.Connection;
@@ -77,7 +78,11 @@ public class DBMySqlVerticle extends DBVerticle {
     try (Connection conn = ds.getConnection()) {
       Statement stmt = conn.createStatement();
       ResultSet rs = stmt.executeQuery(sql);
-      message.reply(rs);
+      JsonArray res = new JsonArray();
+      while (rs.next()) {
+        res.add(new JsonArray().add(rs.getString("id")).add(rs.getString("words")));
+      }
+      message.reply(res);
     } catch (SQLException e) {
       LOGGER.error(e);
     }
@@ -96,7 +101,15 @@ public class DBMySqlVerticle extends DBVerticle {
     try (Connection conn = ds.getConnection()) {
       Statement stmt = conn.createStatement();
       ResultSet rs = stmt.executeQuery(sql);
-      message.reply(rs);
+      JsonArray res = new JsonArray();
+      while (rs.next()) {
+        res.add(
+            new JsonArray()
+                .add(rs.getString("impact_score"))
+                .add(rs.getString("id"))
+                .add(rs.getString("censored_text")));
+      }
+      message.reply(res);
     } catch (SQLException e) {
       LOGGER.error(e);
     }

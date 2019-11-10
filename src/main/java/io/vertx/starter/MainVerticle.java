@@ -5,13 +5,13 @@ import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Promise;
 
 public class MainVerticle extends AbstractVerticle {
-  static final String dbQueue = DBMySqlVerticle.queueName;
+  static final String dbQueue = DBHBaseVerticle.queueName;
   @Override
   public void start(Promise<Void> promise) {
 
     Promise<String> dbVerticleDeployment = Promise.promise();
     vertx.deployVerticle(
-        new DBMySqlVerticle(), dbVerticleDeployment);
+        new DBHBaseVerticle(), dbVerticleDeployment);
 
     dbVerticleDeployment
         .future()
