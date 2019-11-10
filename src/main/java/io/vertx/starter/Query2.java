@@ -90,35 +90,46 @@ public class Query2 {
     Map<Long, Integer> keywordNumOfMatches = new HashMap<>();
 
     JsonArray body = (JsonArray) reply.result().body();
-    body.forEach(
-        rawRow -> {
-          JsonArray row = (JsonArray) rawRow;
-          int tweetType = row.getInteger(8);
-          if ((type.equals("retweet") && tweetType == 1)
-              || (type.equals("reply") && tweetType == 0)) {
-            return;
+    if (body.size() != 0) {
+      JsonArray row = body.getJsonArray(0);
+      String description = getFromJsonArray(row.getString(0));
+      String screen_name = getFromJsonArray(row.getString(1));
+      JsonObject user_tags = getUtags(row);
+      userMap.put(reqUser, new Q2User(reqUser, screen_name, description, user_tags));
+
+      JsonArray records = new JsonArray(row.getString(3));
+      for (int idx = 0; idx < records.size(); idx++) {
+        JsonArray record = records.getJsonArray(idx);
+        Long u2_id = record.getLong(0);
+        String u2_desc = record.getString(1);
+        String u2_name = record.getString(2);
+        JsonObject u2_tags = record.getJsonObject(3);
+
+        // gen userMap
+        userMap.put(u2_id, new Q2User(u2_id, u2_name, u2_desc, u2_tags));
+
+        JsonArray tweets = record.getJsonArray(4);
+        for (int j = 0; j < tweets.size(); j++) {
+          JsonArray tweet = tweets.getJsonArray(j);
+          int tweetType = tweet.getInteger(1);
+
+          // check type
+          if (type.equals("reply") && tweetType == 0) {
+            continue;
           }
-
-          Long tweetId = row.getLong(0);
-          Long contactUser = row.getLong(1);
-          String uDescription = getFromJsonArray(row.getString(3));
-          String uScreenName = getFromJsonArray(row.getString(2));
-          JsonObject uHashtags = getUtags(row);
-
-          JsonObject hashTags = new JsonObject(row.getString(5));
-          Long createdAt = row.getLong(6);
-          String text = getFromJsonArray(row.getString(7));
-
-          // gen userMap
-          if (!userMap.containsKey(contactUser) && uHashtags != null) {
-            userMap.put(contactUser, new Q2User(contactUser, uScreenName, uDescription, uHashtags));
+          if (type.equals("retweet") && tweetType == 1) {
+            continue;
           }
+          Long tweetId = tweet.getLong(0);
+          Long createdAt = tweet.getLong(2);
+          JsonObject hashTags = tweet.getJsonObject(3);
+          String text = tweet.getString(4);
 
           // prepare to calculate interaction score
           if (tweetType == 0) {
-            retweetCounts.put(contactUser, retweetCounts.getOrDefault(contactUser, 0) + 1);
+            retweetCounts.put(u2_id, retweetCounts.getOrDefault(u2_id, 0) + 1);
           } else if (tweetType == 1) {
-            replyCounts.put(contactUser, replyCounts.getOrDefault(contactUser, 0) + 1);
+            replyCounts.put(u2_id, replyCounts.getOrDefault(u2_id, 0) + 1);
           }
 
           // new Tweet(uid1, tweetId, uid2, hashTags, createdAt, content)
@@ -130,23 +141,24 @@ public class Query2 {
             init = text.indexOf(phrase, init + 1);
           }
           keywordNumOfMatches.put(
-              contactUser,
-              keywordNumOfMatches.getOrDefault(contactUser, 0) + numOfTags + numOfPhrase);
+              u2_id, keywordNumOfMatches.getOrDefault(u2_id, 0) + numOfTags + numOfPhrase);
           // to update latest tweet
-          Q2Tweet thisTweet = new Q2Tweet(reqUser, tweetId, contactUser, hashTags, createdAt, text);
-          Q2Tweet currentLatestTweet = latestTweets.get(contactUser);
+          Q2Tweet thisTweet = new Q2Tweet(reqUser, tweetId, u2_id, hashTags, createdAt, text);
+          Q2Tweet currentLatestTweet = latestTweets.get(u2_id);
           if (currentLatestTweet == null) {
-            latestTweets.put(contactUser, thisTweet);
+            latestTweets.put(u2_id, thisTweet);
           } else {
             long currentLatestTimestamp = currentLatestTweet.getCreatedAt();
             long thisTimestamp = thisTweet.getCreatedAt();
             if ((thisTimestamp > currentLatestTimestamp)
                 || (thisTimestamp == currentLatestTimestamp
                     && thisTweet.getTweetId() > currentLatestTweet.getTweetId())) {
-              latestTweets.put(contactUser, thisTweet);
+              latestTweets.put(u2_id, thisTweet);
             }
           }
-        });
+        }
+      }
+    }
 
     // calculate final scores
     List<Q2User> result = new ArrayList<>();
@@ -230,7 +242,7 @@ public class Query2 {
 
   private static JsonObject getUtags(JsonArray row) {
     try {
-      return new JsonObject(row.getString(4));
+      return new JsonObject(row.getString(2));
     } catch (Exception e) {
       return null;
     }

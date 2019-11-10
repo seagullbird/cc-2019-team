@@ -26,7 +26,7 @@ public class DBMySqlVerticle extends AbstractVerticle {
   public void start(Promise<Void> promise) throws Exception {
     String host = "localhost";
     if (System.getProperty("os.name").contains("Mac OS")) {
-      host = "3.83.130.255";
+      host = "54.144.244.86";
     }
     dbClient =
         MySQLClient.createShared(
@@ -72,12 +72,8 @@ public class DBMySqlVerticle extends AbstractVerticle {
     JsonObject request = message.body();
     long reqUser = request.getLong("user");
     String sql =
-        String.format(
-            "select id, u2_id as uid, u2_screen_name as sname, u2_description as udesc, u2_hashtags as utags, hashtags, created_at, text, tweet_type "
-                + "from tweets where u1_id = %d union "
-                + "select id, u1_id as uid, u1_screen_name as sname, u1_description as udesc, u1_hashtags as utags, hashtags, created_at, text, tweet_type "
-                + "from tweets where u2_id = %d;",
-            reqUser, reqUser);
+      String.format(
+        "select description, screen_name, hashtags, records from q2_tweets where uid = %d;", reqUser);
     dbClient.query(
       sql,
       fetch -> {
