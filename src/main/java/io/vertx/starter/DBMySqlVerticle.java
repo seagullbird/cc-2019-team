@@ -58,7 +58,7 @@ public class DBMySqlVerticle extends DBVerticle {
       }
       message.reply(result);
     } catch (SQLException e) {
-      LOGGER.error(e);
+      reportQueryError(message, e);
     }
   }
 
@@ -84,7 +84,7 @@ public class DBMySqlVerticle extends DBVerticle {
       }
       message.reply(res);
     } catch (SQLException e) {
-      LOGGER.error(e);
+      reportQueryError(message, e);
     }
   }
 
@@ -111,7 +111,7 @@ public class DBMySqlVerticle extends DBVerticle {
       }
       message.reply(res);
     } catch (SQLException e) {
-      LOGGER.error(e);
+      reportQueryError(message, e);
     }
   }
 }

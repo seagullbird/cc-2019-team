@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.json.JSONArray;
 
 public class DBHBaseVerticle extends DBVerticle {
   static final String queueName = "hbase.queue";
@@ -31,16 +32,19 @@ public class DBHBaseVerticle extends DBVerticle {
   public void start(Promise<Void> promise) throws Exception {
     Configuration conf = HBaseConfiguration.create();
     conf.set("hbase.zookeeper.quorum", zkPrivateIPs);
+    conf.set("hbase.master", zkPrivateIPs + ":14000");
     conf.set("hbase.zookeeper.property.clientport", "2181");
-    conf.set("hbase.cluster.distributed", "true");
-    conf.set("zookeeper.znode.parent", "/hbase-unsecure");
+
+    conf.set("hbase.regionserver.handler.count", "60");
 
     try {
       conn = ConnectionFactory.createConnection(conf);
       bizTable = conn.getTable(tableName);
     } catch (Exception e) {
+      LOGGER.error(e);
       e.printStackTrace();
     }
+    vertx.eventBus().consumer(queueName, this::onMessage);
     promise.complete();
   }
 
@@ -63,13 +67,13 @@ public class DBHBaseVerticle extends DBVerticle {
     try {
       Result rs = bizTable.get(get);
       JsonObject result = new JsonObject();
-      result.put("description", rs.getValue(q2BColFamily, descriptionCol));
-      result.put("screen_name", rs.getValue(q2BColFamily,screenNameCol));
-      result.put("hashtags", rs.getValue(q2BColFamily, hashtagsCol));
-      result.put("records", rs.getValue(q2BColFamily, recordsCol));
+      result.put("description", Bytes.toString(rs.getValue(q2BColFamily, descriptionCol)));
+      result.put("screen_name", Bytes.toString(rs.getValue(q2BColFamily,screenNameCol)));
+      result.put("hashtags", Bytes.toString(rs.getValue(q2BColFamily, hashtagsCol)));
+      result.put("records", (Bytes.toString(rs.getValue(q2BColFamily, recordsCol))));
       message.reply(result);
     } catch (Exception e) {
-      e.printStackTrace();
+      reportQueryError(message, e);
     }
   }
 
