@@ -561,16 +561,17 @@ public class Query3 {
 
     JsonArray body = (JsonArray) reply.result().body();
     body.forEach(
-      rawRow -> {
-        JsonArray row = (JsonArray) rawRow;
-        String censoredTextWrap = row.getString(2);
-        resultSj.add(
-          String.join(
-            "\t",
-            String.valueOf(row.getLong(0)),
-            String.valueOf(row.getLong(1)),
-            censoredTextWrap.substring(2, censoredTextWrap.length() - 2)));
-      });
+        rawRow -> {
+          JsonArray row = (JsonArray) rawRow;
+          JsonArray censoredTextWrap = new JsonArray(row.getString(2));
+          System.out.println(censoredTextWrap);
+          resultSj.add(
+              String.join(
+                  "\t",
+                  String.valueOf(row.getLong(0)),
+                  String.valueOf(row.getLong(1)),
+                  censoredTextWrap.getString(0)));
+        });
     respondMsg(context, resultSj.toString());
   }
 
